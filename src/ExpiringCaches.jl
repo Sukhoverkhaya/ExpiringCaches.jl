@@ -93,10 +93,12 @@ function Base.iterate(x::Cache)
             return nothing
         end
     end
+    unlock(x.lock)
     return (state[1][1], state[1][2].value), state[2]
 end
 
 function Base.iterate(x::Cache, st)
+    lock(x.lock)
     state = iterate(x.cache, st)
     if state === nothing
         unlock(x.lock)
@@ -109,6 +111,7 @@ function Base.iterate(x::Cache, st)
             return nothing
         end
     end
+    unlock(x.lock)
     return (state[1][1], state[1][2].value), state[2]
 end
 
@@ -252,6 +255,24 @@ function expire!(val::TimestampedValue{V}, key::K,
                 delete!(cache.cache, key)
             end
         end
+    end
+end
+
+using PrecompileTools
+
+@compile_workload begin
+    cache = ExpiringCaches.Cache{Int, Int}(ExpireOnAccess(Dates.Second(5)))
+    @assert length(cache) == 0
+    @assert isempty(cache)
+
+    @assert get(cache, 1, 2) == 2
+    @assert isempty(cache)
+
+    @assert get!(cache, 1, 2) == 2
+    @assert !isempty(cache)
+
+    for (k, v) in cache
+        @assert v == 2
     end
 end
 
