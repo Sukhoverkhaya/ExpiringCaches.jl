@@ -171,17 +171,19 @@ function Base.get!(cache::Cache{K, V}, key::K, default::V) where {K, V}
 end
 
 function Base.get!(f::Function, cache::Cache{K, V}, key::K) where {K, V}
-    lock(cache.lock) do
+    val = lock(cache.lock) do
         if haskey(cache.cache, key)
             x = cache.cache[key]
-            if expired(x, cache.strategy)
-                return setindex!(cache, f()::V, key)
-            else
+            if !expired(x, cache.strategy)
                 return x.value
             end
-        else
-            return setindex!(cache, f()::V, key)
         end
+        return nothing
+    end
+    val !== nothing && return val
+    computed = f()::V # heavy computation outside of lock
+    return lock(cache.lock) do
+        setindex!(cache, computed, key)
     end
 end
 
