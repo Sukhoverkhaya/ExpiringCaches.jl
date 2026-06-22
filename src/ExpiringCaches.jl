@@ -191,6 +191,7 @@ function Base.get!(f::Function, cache::Cache{K, V}, key::K) where {K, V}
         end
         setindex!(cache, computed, key)
     end
+    return computed
 end
 
 Base.delete!(cache::Cache{K}, key::K) where {K} = lock(() -> delete!(cache.cache, key), cache.lock)
